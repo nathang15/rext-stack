@@ -1,0 +1,3 @@
+[submodule "neural_search"]
+	path = neural_search
+	url = https://github.com/nathang15/neural-search-pipeline
