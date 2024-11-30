@@ -54,6 +54,7 @@ class HackerNews:
             except Exception as e:
                 self.logger.warning(f"Failed to download punkt: {e}")
 
+    # TODO: Improve summary generation
     def _generate_summary(self, text: str, max_length: int = 300) -> str:
         try:
             import math
