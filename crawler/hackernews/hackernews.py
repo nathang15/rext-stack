@@ -9,7 +9,7 @@ import nltk
 from urllib.parse import urljoin
 import re
 import math
-from nltk.stem import WordNetLemmatizer
+from pattern3.text.en import pluralize
 
 class HackerNews:
     def __init__(self, username: str, password: str, timeout: int = 10):
@@ -47,6 +47,7 @@ class HackerNews:
     def _setup_nltk_resources(self):
         try:
             nltk.data.find('tokenizers/punkt')
+            nltk.download('averaged_perceptron_tagger_eng', quiet=True)
         except LookupError:
             try:
                 nltk.download('punkt', quiet=True)
@@ -116,7 +117,6 @@ class HackerNews:
     # TODO: Mapreduce implementation later
     def _extract_tags(self, text: str) -> list:
         try:
-            # Load stop words
             stop_words = {}
             current_dir = os.path.dirname(__file__)
             stop_words_file = os.path.join(current_dir, 'stop_words.txt')
@@ -124,54 +124,74 @@ class HackerNews:
             with open(stop_words_file, 'r', encoding='utf-8') as file:
                 stop_words = {line.strip().lower() for line in file}
 
-            # Simplified allowed parts of speech
             allowed_pos = {
-                'NN',   # Noun, singular
-                'NNS',  # Noun, plural
-                'NNP',  # Proper noun, singular
-                'NNPS', # Proper noun, plural
-                'JJ',   # Adjective
-                'VB',   # Verb, base form
-                'VBD',  # Verb, past tense
-                'VBG',  # Verb, gerund
-                'VBN',  # Verb, past participle
-                'VBP',  # Verb, non-3rd person singular present
-                'VBZ',  # Verb, 3rd person singular present
+                'NN', 'NNS', 'NNP', 'NNPS', 'JJ', 'VB', 'VBD', 'VBG', 'VBN', 'VBP', 'VBZ'
             }
 
             try:
-                import nltk
                 words = nltk.word_tokenize(text.lower())
                 pos_tags = nltk.pos_tag(words)
             except Exception:
                 words = re.findall(r'\b\w+\b', text.lower())
                 pos_tags = [(word, 'NN') for word in words]
 
-                filtered_words = [
-                    word for word, pos in pos_tags
-                    if (
-                        word not in stop_words
-                        and len(word) > 2
-                        and not word.isdigit()
-                        and (pos in allowed_pos)
-                    )
-                ]
+            filtered_words = [
+                word for word, pos in pos_tags
+                if (
+                    word not in stop_words
+                    and len(word) > 2
+                    and not word.isdigit()
+                    and (pos in allowed_pos)
+                )
+            ]
 
-                word_freq = {}
-                for word in filtered_words:
-                    word_freq[word] = word_freq.get(word, 0) + 1 / math.log(filtered_words.count(word) + 1)
+            word_freq = {}
+            for word in filtered_words:
+                word_freq[word] = word_freq.get(word, 0) + 1 / math.log(filtered_words.count(word) + 1)
 
-                tags = sorted(
+            tags = sorted(
                 set(filtered_words),
                 key=lambda x: word_freq.get(x, 0),
                 reverse=True
-                )[:3]
+            )[:3]
 
-                return tags
+            # Pluralize noun tags
+            pluralized_tags = []
+            for tag in tags:
+                try:
+                    pos = nltk.pos_tag([tag])
+                    if pos[0][1].startswith('NN') and not pos[0][1] == 'NNS':
+                        pluralized_tags.append(pluralize(tag))
+                    else:
+                        pluralized_tags.append(tag)
+                except Exception as e:
+                    self.logger.warning(f"Error pluralizing tag {tag}: {e}")
+                    pluralized_tags.append(tag)
+
+            return list(set(pluralized_tags))
 
         except Exception as e:
-            self.logger.warning(f"tag extraction failed: {e}")
+            self.logger.warning(f"Tag extraction failed: {e}")
             return []
+        
+    def _pluralize_tags(self, data: Dict) -> Dict:
+        for url, document in list(data.items()):
+            try:
+                pluralized_tags = []
+                for tag in document.get('tags', []):
+                    try:
+                        pos = nltk.pos_tag([tag])
+                        if pos[0][1].startswith('NN') and not pos[0][1] == 'NNS':
+                            pluralized_tags.append(pluralize(tag))
+                        else:
+                            pluralized_tags.append(tag)
+                    except Exception as tag_error:
+                        self.logger.warning(f"Error processing tag {tag}: {tag_error}")
+                        pluralized_tags.append(tag)
+                document['tags'] = list(set(pluralized_tags))
+            except Exception as doc_error:
+                self.logger.error(f"Error processing document {url}: {doc_error}")
+        return data
 
     def _fetch_page_content(self, url: str) -> Optional[str]:
         try:
