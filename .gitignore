@@ -167,3 +167,5 @@ cython_debug/
 *.pickle
 
 .embedding_cache
+
+database
