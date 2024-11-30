@@ -155,20 +155,28 @@ class HackerNews:
                 reverse=True
             )[:3]
 
-            # Pluralize noun tags
-            pluralized_tags = []
+            # Combine 'distributed' and 'systems'
+            if 'distributed' in tags and 'systems' in tags:
+                tags = [tag for tag in tags if tag not in ['distributed', 'systems']]
+                tags.append('distributed-systems')
+
+            final_tags = []
             for tag in tags:
                 try:
                     pos = nltk.pos_tag([tag])
                     if pos[0][1].startswith('NN') and not pos[0][1] == 'NNS':
-                        pluralized_tags.append(pluralize(tag))
+                        plural = pluralize(tag)
+                        if word_freq.get(plural, 0) > 1:
+                            final_tags.append(plural)
+                        else:
+                            final_tags.append(tag)
                     else:
-                        pluralized_tags.append(tag)
+                        final_tags.append(tag)
                 except Exception as e:
                     self.logger.warning(f"Error pluralizing tag {tag}: {e}")
-                    pluralized_tags.append(tag)
+                    final_tags.append(tag)
 
-            return list(set(pluralized_tags))
+            return list(set(final_tags))
 
         except Exception as e:
             self.logger.warning(f"Tag extraction failed: {e}")
