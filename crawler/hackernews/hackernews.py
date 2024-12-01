@@ -6,7 +6,7 @@ from typing import Dict, Optional
 import concurrent.futures
 import logging
 import nltk
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 import re
 import math
 from pattern3.text.en import pluralize
@@ -245,18 +245,23 @@ class HackerNews:
             if not url.startswith(('http://', 'https://')):
                 url = urljoin(self.base_url, url)
 
-            content = self._fetch_page_content(url)
-            
+            title = record.text.strip()
             tags = ["hackernews"]
             summary = ""
-            
-            if content:
-                tags.extend(self._extract_tags(content))
-                summary = self._generate_summary(content)
+
+            if urlparse(url).netloc == 'github.com':
+                description, github_tags = self._get_github_info(url)
+                tags.extend(github_tags)
+                summary = f"HackerNews: {title}\n\n{description}"
+            else:
+                content = self._fetch_page_content(url)
+                if content:
+                    tags.extend(self._extract_tags(content))
+                    summary = self._generate_summary(content)
 
             return {
                 url: {
-                    "title": f"HackerNews: {record.text.strip()}",
+                    "title": f"HackerNews: {title}",
                     "tags": list(set(tags)),
                     "summary": summary,
                     "date": datetime.datetime.today().strftime("%Y-%m-%d"),
@@ -265,7 +270,6 @@ class HackerNews:
         
         except Exception as e:
             self.logger.warning(f"Error parsing entry: {e}")
-            return None
 
     def __call__(self) -> Dict:
         logging.basicConfig(
@@ -304,3 +308,37 @@ class HackerNews:
             except requests.RequestException as e:
                 self.logger.error(f"Failed to fetch upvoted page: {e}")
                 return {}
+            
+    def _get_github_info(self, url: str) -> tuple[str, list[str]]:
+        try:
+            path_parts = urlparse(url).path.strip('/').split('/')
+            if len(path_parts) < 2:
+                return "", ["github"]
+            
+            owner, repo = path_parts[0], path_parts[1]
+            
+            api_url = f"https://api.github.com/repos/{owner}/{repo}"
+            headers = {'Accept': 'application/vnd.github.v3+json'}
+            
+            response = requests.get(api_url, headers=headers, timeout=self.timeout)
+            response.raise_for_status()
+            
+            repo_data = response.json()
+            
+            topics_url = f"{api_url}/topics"
+            topics_response = requests.get(topics_url, headers=headers, timeout=self.timeout)
+            topics_response.raise_for_status()
+            
+            topics_data = topics_response.json()
+            tags = topics_data.get('names', [])
+            
+            tags.append('github')
+            
+            if repo_data.get('language'):
+                tags.append(repo_data['language'].lower())
+            
+            return repo_data.get('description', repo_data.get('name', '')), list(set(tags))
+            
+        except requests.RequestException as e:
+            self.logger.warning(f"Failed to fetch GitHub info for {url}: {e}")
+            return "", ["github"]
