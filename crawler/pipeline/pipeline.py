@@ -1,68 +1,41 @@
-from typing import List, Dict, Optional
-from difflib import SequenceMatcher
-import spacy
 from ..retriever import Retriever
 from ..graph import Graph
+from typing import Tuple
+import pkg_resources
+from symspellpy import SymSpell
+
 class Pipeline:
-    def __init__(
-        self, 
-        documents: List[Dict], 
-        triples: List[Dict], 
-        excluded_tags: Optional[List[str]] = None,
-        language_model: str = 'en_core_web_md'
-    ):
-        try:
-            self.nlp = spacy.load(language_model)
-        except OSError:
-            print(f"Downloading language model {language_model}")
-            spacy.cli.download(language_model)
-            self.nlp = spacy.load(language_model)
-        
-        self.dictionary = {
-            word.text.lower() for word in self.nlp.vocab 
-            if word.is_alpha and len(word.text) > 1 and not word.is_stop
-        }
-        
+    def __init__(self, documents, triples, excluded_tags=None, max_edit_distance=2):
         self.retriever = Retriever(documents=documents)
         self.graph = Graph(triples=triples)
-        self.excluded_tags = set(excluded_tags) if excluded_tags else set()
+        self.excluded_tags = {} if excluded_tags is None else excluded_tags
+        
+        self.spell_checker = SymSpell(max_dictionary_edit_distance=max_edit_distance)
+        dictionary_path = pkg_resources.resource_filename(
+            "symspellpy", "frequency_dictionary_en_82_765.txt"
+        )
+        self.spell_checker.load_dictionary(dictionary_path, term_index=0, count_index=1)
 
-    def spell_correction(self, query: str) -> str:
-        def find_closest_word(word):
-            if word.lower() in self.dictionary:
-                return word
+    def correct_spelling(self, text: str) -> Tuple[str, bool]:
+        suggestions = self.spell_checker.lookup_compound(
+            text, max_edit_distance=2, transfer_casing=True
+        )
+        if suggestions:
+            corrected = suggestions[0].term
+            was_corrected = corrected != text
+            return corrected, was_corrected
+        return text, False
+
+    def search(self, q: str, tags: bool = False, top_k: int = 10, apply_spelling: bool = True):
+        if apply_spelling:
+            corrected_q, was_corrected = self.correct_spelling(q)
+            if was_corrected:
+                print(f"Spell-corrected query: '{q}' -> '{corrected_q}'")
+            q = corrected_q
             
-            try:
-                closest = max(
-                    self.dictionary, 
-                    key=lambda x: SequenceMatcher(None, word.lower(), x).ratio()
-                )
-                return closest
-            except ValueError:
-                return word
-
-        tokens = query.split()
-        corrected_tokens = [find_closest_word(token) for token in tokens]
-        
-        return ' '.join(corrected_tokens)
-
-    def search(
-        self, 
-        q: str, 
-        tags: bool = False, 
-        spell_correction: bool = True,
-        k: int = 5
-    ):
-        if spell_correction:
-            try:
-                q = self.spell_correction(q)
-            except Exception as e:
-                print(f"Spell correction failed: {e}")
-        
         if tags:
-            return self.retriever.documents_tags(q)
-        
-        return self.retriever.documents(q)
+            return self.retriever.documents_tags(q, top_k)
+        return self.retriever.documents(q, top_k)
 
     def __call__(
         self,
@@ -70,30 +43,39 @@ class Pipeline:
         k_tags: int = 20,
         k_yens: int = 3,
         k_walk: int = 3,
+        top_k: int = 10,
+        apply_spelling: bool = True
     ):
-        documents = self.search(q)
+        if apply_spelling:
+            corrected_q, was_corrected = self.correct_spelling(q)
+            if was_corrected:
+                print(f"Spell-corrected query: '{q}' -> '{corrected_q}'")
+            q = corrected_q
+
+        documents = self.retriever.documents(q, top_k)
         retrieved_tags = self.retriever.tags(q)
 
         tags = {}
         for document in documents:
-            for tag in document.get('tags', []) + document.get('extra-tags', []):
+            doc_tags = document.get("tags", []) + document.get("extra-tags", [])
+            for tag in doc_tags:
                 if tag not in self.excluded_tags:
-                    tags[tag] = True
+                    if tag not in tags:
+                        tags[tag] = 1
+                    else:
+                        tags[tag] += 1
+
+        sorted_tags = sorted(tags.items(), key=lambda x: x[1], reverse=True)
+        top_tags = [tag for tag, _ in sorted_tags[:k_tags]]
 
         nodes, links = self.graph(
-            tags=list(tags)[:k_tags],
+            tags=top_tags,
             retrieved_tags=retrieved_tags,
             k_yens=k_yens,
             k_walk=k_walk,
         )
         return documents, nodes, links
 
-    def plot(
-        self, 
-        q: str, 
-        k_tags: int = 20, 
-        k_yens: int = 3, 
-        k_walk: int = 3
-    ):
-        _, nodes, links = self(q=q, k_tags=k_tags, k_yens=k_yens, k_walk=k_walk)
+    def plot(self, q: str, k_tags: int = 20, k_yens: int = 3, k_walk: int = 3, apply_spelling: bool = True):
+        _, nodes, links = self(q=q, k_tags=k_tags, k_yens=k_yens, k_walk=k_walk, apply_spelling=apply_spelling)
         return nodes, links

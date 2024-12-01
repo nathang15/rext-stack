@@ -91,8 +91,8 @@ const Search = () => {
     if (node) {
       setHoveredNode(node);
       setNode(node.id);
-      handleSearch(query + " " + node.id, k);
-      window.history.pushState({}, null, `?query=${encodeURIComponent(query)}&node=${encodeURIComponent(node.id)}`);
+      // handleSearch(query + " " + node.id, k);
+      // window.history.pushState({}, null, `?query=${encodeURIComponent(query)}&node=${encodeURIComponent(node.id)}`);
     } else {
       setHoveredNode(null);
     }

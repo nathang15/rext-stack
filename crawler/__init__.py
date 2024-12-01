@@ -3,4 +3,5 @@ __all__ = [
     "hackernews",
     "retriever",
     "graph",
+    "pipeline",
 ]
