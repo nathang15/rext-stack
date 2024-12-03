@@ -1,7 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
 
 body {
-    background: linear-gradient(135deg, #121214 0%, #1E1E22 100%);
     margin: 0;
     font-family: 'Inter', sans-serif;
     color: #E0E0E3;
@@ -9,6 +8,26 @@ body {
     overflow: hidden;
 }
 
+/* App container */
+.App {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Background canvas styles */
+.background-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.95) 0%, rgba(30, 30, 34, 0.95) 100%);
+}
+
+/* Search container and components */
 .search-container {
     display: flex;
     flex-direction: column;
@@ -16,6 +35,8 @@ body {
     max-width: 1800px;
     margin: 0 auto;
     padding: 0 20px;
+    position: relative;
+    z-index: 1;
 }
 
 .search-wrapper {
@@ -29,8 +50,10 @@ body {
 #search {
     width: 100%;
     max-width: 800px;
-    background-color: rgba(30, 30, 34, 0.8);
-    border: 2px solid rgba(255, 255, 255, 0.1);
+    background-color: rgba(30, 30, 34, 0.2);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 2px solid rgba(255, 255, 255, 0.08);
     border-radius: 12px;
     color: #FFFFFF;
     font-family: 'Inter', sans-serif;
@@ -39,7 +62,7 @@ body {
     padding: 0 60px 0 20px;
     outline: none;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08);
 }
 
 .search-icon {
@@ -51,26 +74,33 @@ body {
 }
 
 #search:focus {
-    border-color: rgba(25, 188, 142, 0.5);
-    box-shadow: 0 0 15px rgba(25, 188, 142, 0.2);
+    background-color: rgba(30, 30, 34, 0.25);
+    border: 2px solid rgba(255, 255, 255, 0.12);
 }
-
+/* Content container */
 .content-container {
     display: flex;
     flex-grow: 1;
     gap: 20px;
     overflow: hidden;
+    position: relative;
+    z-index: 1;
 }
 
+/* Documents section */
 .documents {
     width: 45%;
-    padding: 20px;
+    padding: 12px;
     overflow-y: auto;
-    background-color: rgba(30, 30, 34, 0.6);
+    background-color: rgba(30, 30, 34, 0.2);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 12px;
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
+
 
 .no-results {
     text-align: center;
@@ -87,22 +117,27 @@ body {
     border-radius: 4px;
 }
 
+/* Document styles */
 .document {
     margin-bottom: 20px;
     padding: 15px;
-    background-color: rgba(40, 40, 45, 0.5);
+    background-color: rgba(40, 40, 45, 0.15);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     border-radius: 8px;
     transition: all 0.3s ease;
-    border: 1px solid transparent;
+    animation: fadeIn 0.3s ease-out;
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
+
 
 .document.highlighted {
-    border-color: rgba(25, 188, 142, 0.5);
-    background-color: rgba(25, 188, 142, 0.1);
+    box-shadow: 0 0 20px rgba(243, 255, 251, 0.918);
 }
 
+
 .document:hover {
-    background-color: rgba(50, 50, 55, 0.7);
+    background-color: rgba(50, 50, 55, 0.25);
 }
 
 .document a {
@@ -130,6 +165,7 @@ body {
     margin-top: 10px;
 }
 
+/* Tags */
 .tags {
     margin-top: 15px;
     display: flex;
@@ -138,7 +174,9 @@ body {
 }
 
 .tag {
-    background-color: rgba(25, 188, 142, 0.1);
+    background-color: rgba(25, 188, 142, 0.15);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
     color: #19bc8e;
     padding: 3px 8px;
     border-radius: 4px;
@@ -156,13 +194,29 @@ body {
     font-weight: bold;
 }
 
+/* Graph section */
 .graph {
     width: 55%;
-    background-color: rgba(19, 19, 23, 0.8);
+    background-color: rgba(19, 19, 23, 0.2);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 12px;
     overflow: hidden;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
     display: flex;
     justify-content: center;
     align-items: center;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { 
+        opacity: 0; 
+        transform: translateY(10px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
 }

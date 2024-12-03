@@ -88,15 +88,17 @@ const Search = () => {
   };
 
   const handleHoverNode = (node) => {
+    setHoveredNode(node);
+  };
+
+  const handleClickNode = (node) => {
     if (node) {
-      setHoveredNode(node);
       setNode(node.id);
-      // handleSearch(query + " " + node.id, k);
-      // window.history.pushState({}, null, `?query=${encodeURIComponent(query)}&node=${encodeURIComponent(node.id)}`);
-    } else {
-      setHoveredNode(null);
+      handleSearch(query + " " + node.id, k);
+      window.history.pushState({}, null, `?query=${encodeURIComponent(query)}&node=${encodeURIComponent(node.id)}`);
     }
   };
+
 
   const highlight = (text) => {
     if (query.length <= 1) return text;
@@ -162,47 +164,57 @@ const Search = () => {
           )}
         </div>
         
-        <div className="graph">
-          <ForceGraph3D
-            graphData={graphData}
-            backgroundColor="#131317"
-            width={window.innerWidth / 2}
-            height={window.innerHeight}
-            showNavInfo={false}
-            nodeAutoColorBy="group"
-            linkOpacity={0.6}
-            linkWidth={0.2}
-            linkResolution={10}
-            linkDirectionalParticleColor={() => "#FFFFFF"}
-            linkDirectionalParticles={2}
-            linkDirectionalParticleWidth={0.3}
-            linkDirectionalParticleResolution={8}
-            linkColor={(link) => hoveredNode 
-              ? (link.source.id === hoveredNode.id || link.target.id === hoveredNode.id) 
-                ? "#19bc8e" 
-                : "rgba(255,255,255,0.2)"
-              : "#FFFFFF"
-            }
-            linkThreeObjectExtend={true}
-            linkThreeObject={(link) => {
-              const sprite = new SpriteText(link.relation);
-              sprite.color = '#FFFFFF';
-              sprite.textHeight = 1.5;
-              sprite.fontSize = 0;
-              sprite.fontFace = "Inter";
-              return sprite;
-            }}
-            nodeThreeObject={(node) => {
-              const sprite = new SpriteText(node.id);
-              sprite.color = node.color;
-              sprite.textHeight = 3;
-              sprite.fontSize = hoveredNode === node ? 70 : 50;
-              sprite.fontFace = "Inter";
-              return sprite;
-            }}
-            onNodeHover={handleHoverNode}
-          />
-        </div>
+          <div className="graph">
+            <ForceGraph3D
+              graphData={graphData}
+              backgroundColor="rgba(19, 19, 23, 0)"
+              width={window.innerWidth / 2}
+              height={window.innerHeight}
+              showNavInfo={false}
+              nodeAutoColorBy="group"
+              linkOpacity={0.8}
+              linkWidth={0.3}
+              linkResolution={12}
+              linkDirectionalParticleColor={() => "#E6F4FF"}
+              linkDirectionalParticles={3}
+              linkDirectionalParticleWidth={0.4}
+              linkDirectionalParticleResolution={10}
+              linkDirectionalParticleSpeed={0.01}
+              linkColor={(link) => hoveredNode 
+                ? (link.source.id === hoveredNode.id || link.target.id === hoveredNode.id) 
+                  ? "#60AA91FF" 
+                  : "rgba(255, 255, 255, 0.4)"
+                : "rgba(255, 255, 255, 0.6)"
+              }
+              nodeRelSize={6}
+              nodeResolution={16}
+              nodeOpacity={0.9}
+              linkThreeObjectExtend={true}
+              linkThreeObject={(link) => {
+                const sprite = new SpriteText(link.relation);
+                sprite.color = '#FFFFFF';
+                sprite.textHeight = 1.5;
+                sprite.fontSize = 0;
+                sprite.fontFace = "Inter";
+                return sprite;
+              }}
+              nodeThreeObject={(node) => {
+                const sprite = new SpriteText(node.id);
+                sprite.color = node.color;
+                sprite.textHeight = 3.5;
+                sprite.fontSize = hoveredNode === node ? 75 : 55;
+                sprite.fontFace = "Inter";
+                return sprite;
+              }}
+              onNodeHover={handleHoverNode}
+              onNodeClick={handleClickNode}
+              cooldownTime={2000}
+              d3AlphaDecay={0.02}
+              d3VelocityDecay={0.3}
+              enableNodeDrag={true}
+              enableNavigationControls={true}
+            />
+          </div>
       </div>
     </div>
   );
