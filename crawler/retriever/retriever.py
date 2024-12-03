@@ -104,25 +104,47 @@ class Retriever:
         )
 
     def simple_rerank(self, query: str, documents: List[Dict], top_k: int = 10) -> List[Dict]:
+        """
+        Rerank documents using a combination of bi-encoder and cross-encoder scores
+        """
+        if not documents:
+            return []
+            
         query_embedding = self.encoder.encode(query, convert_to_tensor=True)
         
+        # Calculate bi-encoder similarities
         similarities = []
         for doc in documents:
-            doc_embedding = self.document_embeddings[doc['url']]
-            similarity = np.dot(query_embedding, doc_embedding)
-            similarities.append(similarity)
-        
+            try:
+                doc_embedding = self.document_embeddings[doc['url']]
+                similarity = np.dot(query_embedding, doc_embedding)
+                similarities.append(similarity)
+            except KeyError:
+                similarities.append(0.0)
+                
         pairs = [[query, f"{doc['title']} {doc['summary']}" ] for doc in documents]
-        cross_scores = self.cross_encoder.predict(pairs)
         
-        combined_scores = [0.3 * sim + 0.7 * cross for sim, cross in zip(similarities, cross_scores)]
+        # Only run cross-encoder if have pairs
+        if pairs:
+            cross_scores = self.cross_encoder.predict(pairs)
+        else:
+            cross_scores = []
+            
+        # Combine scores with weights
+        combined_scores = [
+            0.3 * sim + 0.7 * cross 
+            for sim, cross in zip(similarities, cross_scores)
+        ]
         
+        # Sort documents by combined scores
         scored_docs = list(zip(documents, combined_scores))
         scored_docs.sort(key=lambda x: x[1], reverse=True)
         
         return [doc for doc, _ in scored_docs[:top_k]]
 
     def documents(self, q: str, top_k: int = 10) -> List[Dict]:
+        if not q.strip():
+            return []
         initial_results = self.retriever(q)
         return self.simple_rerank(q, initial_results, top_k)
 

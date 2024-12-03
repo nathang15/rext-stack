@@ -7,7 +7,6 @@ from symspellpy import SymSpell
 class Pipeline:
     def __init__(self, documents, triples, excluded_tags=None, max_edit_distance=2):
         self.retriever = Retriever(documents=documents)
-        self.graph = Graph(triples=triples)
         self.excluded_tags = {} if excluded_tags is None else excluded_tags
         
         self.spell_checker = SymSpell(max_dictionary_edit_distance=max_edit_distance)
@@ -53,22 +52,33 @@ class Pipeline:
             q = corrected_q
 
         documents = self.retriever.documents(q, top_k)
-        retrieved_tags = self.retriever.tags(q)
+        retrieved_tags = [tag for tag in self.retriever.tags(q) if tag not in self.excluded_tags]
 
         tags = {}
         for document in documents:
-            doc_tags = document.get("tags", []) + document.get("extra-tags", [])
+            doc_tags = [tag for tag in (document.get("tags", []) + document.get("extra-tags", [])) 
+                    if tag not in self.excluded_tags]
             for tag in doc_tags:
-                if tag not in self.excluded_tags:
-                    if tag not in tags:
-                        tags[tag] = 1
-                    else:
-                        tags[tag] += 1
+                tags[tag] = tags.get(tag, 0) + 1
 
         sorted_tags = sorted(tags.items(), key=lambda x: x[1], reverse=True)
         top_tags = [tag for tag, _ in sorted_tags[:k_tags]]
 
-        nodes, links = self.graph(
+        triples = []
+        for doc in documents:
+            doc_tags = [tag for tag in (doc.get("tags", []) + doc.get("extra-tags", []))
+                    if tag not in self.excluded_tags]
+            for i, tag1 in enumerate(doc_tags):
+                for tag2 in doc_tags[i+1:]:
+                    if tag1 != tag2:
+                        triples.append({
+                            "head": tag1,
+                            "tail": tag2
+                        })
+
+        graph = Graph(triples=triples)
+        
+        nodes, links = graph(
             tags=top_tags,
             retrieved_tags=retrieved_tags,
             k_yens=k_yens,
@@ -77,5 +87,11 @@ class Pipeline:
         return documents, nodes, links
 
     def plot(self, q: str, k_tags: int = 20, k_yens: int = 3, k_walk: int = 3, apply_spelling: bool = True):
-        _, nodes, links = self(q=q, k_tags=k_tags, k_yens=k_yens, k_walk=k_walk, apply_spelling=apply_spelling)
+        _, nodes, links = self(
+            q=q, 
+            k_tags=k_tags, 
+            k_yens=k_yens, 
+            k_walk=k_walk, 
+            apply_spelling=apply_spelling
+        )
         return nodes, links
