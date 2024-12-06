@@ -24,7 +24,7 @@ const Background = () => {
         this.size = Math.random() * 2 + 1;
         this.speedX = Math.random() * 0.8 - 0.4;
         this.speedY = Math.random() * 0.8 - 0.4;
-        this.color = `rgba(255, 255, 255, ${Math.random() * 0.5 + 0.2})`; 
+        this.color = `rgba(255, 255, 255, ${Math.random() * 0.8 + 0.2})`; 
       }
 
       update() {
@@ -70,8 +70,14 @@ const Background = () => {
     };
 
     const animate = () => {
-      // Slower fade for more visible trails
-      ctx.fillStyle = 'rgba(18, 18, 20, 0.08)';
+      // Clear the entire canvas completely
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw the gradient background
+      const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      gradient.addColorStop(0, 'rgba(0, 0, 0, 0.92)');
+      gradient.addColorStop(1, 'rgba(30, 30, 34, 0.92)');
+      ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       particles.forEach(particle => {
