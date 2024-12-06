@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 def initialize_knowledge_base():
-    """Initialize the knowledge base before starting the server"""
     data = {}
 
     try:
@@ -91,6 +90,7 @@ def initialize_knowledge_base():
     try:
         excluded_tags = {
             "hackernews": True,
+            "github": True
         }
 
         logger.info("Exporting tree of tags.")
@@ -106,6 +106,7 @@ def initialize_knowledge_base():
         knowledge_pipeline = pipeline.Pipeline(
             documents=data,
             triples=triples,
+            excluded_tags=excluded_tags
         )
         with open("database/pipeline.pkl", "wb") as f:
             pickle.dump(knowledge_pipeline, f)
@@ -116,13 +117,11 @@ def initialize_knowledge_base():
     logger.info("Knowledge acquisition and processing complete")
     return True
 
-# Initialize knowledge base before creating the FastAPI app
 initialize_knowledge_base()
 
-# Create FastAPI app
 app = FastAPI(
-    description="Personal knowledge graph.",
-    title="FactGPT",
+    description="Personal Knowledge Graph Search Engine",
+    title="RextStack",
     version="0.0.1",
 )
 

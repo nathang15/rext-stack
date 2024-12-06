@@ -8,7 +8,7 @@ class Pipeline:
     def __init__(self, documents, triples, excluded_tags=None, max_edit_distance=2):
         self.retriever = Retriever(documents=documents)
         self.excluded_tags = {} if excluded_tags is None else excluded_tags
-        
+        self.graph = Graph(triples=triples)
         self.spell_checker = SymSpell(max_dictionary_edit_distance=max_edit_distance)
         dictionary_path = pkg_resources.resource_filename(
             "symspellpy", "frequency_dictionary_en_82_765.txt"
@@ -76,9 +76,9 @@ class Pipeline:
                             "tail": tag2
                         })
 
-        graph = Graph(triples=triples)
+
         
-        nodes, links = graph(
+        nodes, links = self.graph(
             tags=top_tags,
             retrieved_tags=retrieved_tags,
             k_yens=k_yens,
