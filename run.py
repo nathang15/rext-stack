@@ -148,7 +148,7 @@ def initialize_knowledge_base():
     logger.info("Knowledge acquisition and processing complete")
     return True
 
-#initialize_knowledge_base()
+initialize_knowledge_base()
 
 app = FastAPI(
     description="Personal Knowledge Graph Search Engine",

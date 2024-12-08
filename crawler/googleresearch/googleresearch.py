@@ -42,7 +42,7 @@ class GoogleResearch:
         try:
             stop_words = {}
             current_dir = os.path.dirname(__file__)
-            stop_words_file = os.path.join(current_dir, 'stop_words.txt')
+            stop_words_file = os.path.join(current_dir, '../common/stop_words.txt')
 
             with open(stop_words_file, 'r', encoding='utf-8') as file:
                 stop_words = {line.strip().lower() for line in file}

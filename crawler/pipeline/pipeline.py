@@ -11,7 +11,7 @@ class Pipeline:
         self.graph = Graph(triples=triples)
         self.spell_checker = SymSpell(max_dictionary_edit_distance=max_edit_distance)
         dictionary_path = pkg_resources.resource_filename(
-            "symspellpy", "frequency_dictionary_en_82_765.txt"
+            "symspellpy", "frequency_dictionary_en_500_000.txt"
         )
         self.spell_checker.load_dictionary(dictionary_path, term_index=0, count_index=1)
 
