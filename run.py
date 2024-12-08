@@ -7,7 +7,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
-from crawler import hackernews, pipeline, tags
+from crawler import hackernews, pipeline, tags, googleresearch
 from dotenv import load_dotenv
 import os
 
@@ -28,7 +28,7 @@ def initialize_knowledge_base():
         data = {}
 
     try:
-        logger.info("Fetching Hackernews knowledge")
+        logger.info("Fetching Hackernews upvotes")
         knowledge_crawler = hackernews.HackerNews(
             username=os.getenv('HACKERNEWS_USERNAME'),
             password=os.getenv('HACKERNEWS_PASSWORD'),
@@ -49,13 +49,47 @@ def initialize_knowledge_base():
                         existing_extra_tags
                     ))
                     data[url]['tags'] = combined_tags
-        
+
         logger.info(f"Found {len(knowledge)} new Hackernews documents")
     
     except Exception as e:
         logger.error(f"Error fetching Hackernews knowledge: {e}")
 
-    # Data Normalization
+    try:
+        logger.info("Fetching Google Research publications")
+        google_crawler = googleresearch.GoogleResearch(
+            max_pages=1,
+            category="data-mining-and-modeling&category=distributed-systems-and-parallel-computing&category=information-retrieval-and-the-web&category=natural-language-processing&category=networking&category=security-privacy-and-abuse-prevention&category=software-engineering&category=software-systems&category=speech-processing"
+        )
+        publications = google_crawler()
+        
+        for url, publication in publications.items():
+            if url not in data:
+                document = {
+                    "title": publication["title"],
+                    "summary": publication["abstract"],
+                    "date": publication["date"],
+                    "tags": publication["tags"],
+                }
+                data[url] = document
+            else:
+                existing_extra_tags = data[url].get('extra-tags', [])
+                data[url].update({
+                    "title": publication["title"],
+                    "summary": publication["abstract"],
+                    "date": publication["date"],
+                    "tags": list(set(
+                        publication["tags"] + 
+                        data[url].get('tags', []) + 
+                        existing_extra_tags
+                    )),
+                })
+        
+        logger.info(f"Found {len(publications)} Google Research publications")
+    
+    except Exception as e:
+        logger.error(f"Error fetching Google Research publications: {e}")
+
     for url, document in list(data.items()):
         required_fields = ["title", "tags", "summary", "date"]
         for field in required_fields:
@@ -70,14 +104,12 @@ def initialize_knowledge_base():
         if len(document.get('summary', '')) > 500:
             document['summary'] = document['summary'][:500] + '...'
 
-    # Add Extra Tags
     logger.info("Adding extra tags")
     try:
         data = tags.get_extra_tags(data=data)
     except Exception as e:
         logger.error(f"Error adding extra tags: {e}")
 
-    # Save Database
     try:
         os.makedirs("database", exist_ok=True)
         with open("database/database.json", "w") as f:
@@ -86,11 +118,11 @@ def initialize_knowledge_base():
     except Exception as e:
         logger.error(f"Error saving database: {e}")
 
-    # Export Tags Triples
     try:
         excluded_tags = {
             "hackernews": True,
-            "github": True
+            "github": True,
+            "google-research": True,
         }
 
         logger.info("Exporting tree of tags.")
@@ -101,7 +133,6 @@ def initialize_knowledge_base():
     except Exception as e:
         logger.error(f"Error exporting tags triples: {e}")
 
-    # Serialize Pipeline
     try:
         knowledge_pipeline = pipeline.Pipeline(
             documents=data,

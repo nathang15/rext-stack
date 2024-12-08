@@ -34,7 +34,7 @@ class Retriever:
             retrieve.TfIdf(
                 key="url",
                 attr=["title", "tags", "summary", "date"],
-                k=50,
+                k=100,
                 tfidf=sparse.BM25Vectorizer(
                     normalize=True,
                     ngram_range=(4, 7),

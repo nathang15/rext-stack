@@ -25,7 +25,7 @@ class Pipeline:
             return corrected, was_corrected
         return text, False
 
-    def search(self, q: str, tags: bool = False, top_k: int = 10, apply_spelling: bool = True):
+    def search(self, q: str, tags: bool = False, top_k: int = 100, apply_spelling: bool = True):
         if apply_spelling:
             corrected_q, was_corrected = self.correct_spelling(q)
             if was_corrected:
@@ -43,7 +43,7 @@ class Pipeline:
         k_yens: int = 3,
         k_walk: int = 3,
         top_k: int = 10,
-        apply_spelling: bool = True
+        apply_spelling: bool = False
     ):
         if apply_spelling:
             corrected_q, was_corrected = self.correct_spelling(q)

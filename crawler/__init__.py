@@ -4,4 +4,5 @@ __all__ = [
     "retriever",
     "graph",
     "pipeline",
+    "googleresearch"
 ]

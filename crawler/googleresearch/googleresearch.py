@@ -25,7 +25,7 @@ class GoogleResearch:
     def __init__(self, timeout: int = 10, max_pages: int = 5, category: Optional[str] = None):
         self.timeout = timeout
         self.max_pages = max_pages
-        self.category = category
+        self.categories = self._parse_categories(category) if category else []
         self.logger = logging.getLogger(__name__)
         self.base_url = "https://research.google/pubs/"
         self._setup_nltk()
@@ -103,27 +103,33 @@ class GoogleResearch:
                 url = urljoin(self.base_url, heading['href'])
                 links.append(url)
         return links
+    
+    def _parse_categories(self, category_string: str) -> list[str]:
+        """Parse multiple categories from URL parameter string."""
+        parts = category_string.split('&category=')
+        
+        # Clean up categories
+        categories = []
+        for part in parts:
+            if 'category=' in part:
+                part = part.split('category=')[1]
+            
+            if part:
+                categories.append(self._normalize_category(part))
+        
+        return categories
 
     def _normalize_category(self, category: str) -> list[str]:
-        """Split category string into separate tags"""
-        if not category:
-            return []
-        parts = category.split('-and-')
-        tags = []
+        """Normalize a single category name into a tag."""
+        if '-and-' in category:
+            return category
         
-        for part in parts:
-            if part == 'distributed-systems':
-                tags.append('distributed-systems')
-            elif part == 'parallel-computing':
-                tags.append('parallel-computing')
-            elif part == 'machine-learning':
-                tags.append('machine-learning')
-            elif part == 'machine-intelligence':
-                tags.append('machine-intelligence')
-            else:
-                tags.append(part)
+        category = category.replace('%20', '-')
         
-        return tags
+        category = category.lower().strip()
+        category = re.sub(r'[^a-z0-9-]', '', category)
+        
+        return category
 
     def _normalize_research_area(self, area: str) -> str:
         """Convert research area to normalized tag format"""
@@ -186,8 +192,7 @@ class GoogleResearch:
                 return None
             title = title_elem.get_text(strip=True)
             
-            date_elem = soup.select_one('.row-card__subheading .extra-small-text:last-child')
-            date = date_elem.get_text(strip=True) if date_elem else ""
+            date = str(datetime.datetime.today().strftime("%Y-%m-%d"))
             
             abstract = ""
             abstract_section = soup.find('h3', string='Abstract')
@@ -213,8 +218,13 @@ class GoogleResearch:
             abstract_tags = self._extract_tags(abstract) if abstract else []
             
             all_tags = []
-            if self.category:
-                all_tags.extend(self._normalize_category(self.category))
+            if self.categories:
+                for category in self.categories:
+                    if '-and-' in category:
+                        category_parts = category.split('-and-')
+                        all_tags.extend(category_parts)
+                    else:
+                        all_tags.append(category)
             all_tags.extend(area_tags)
             all_tags.extend(title_tags)
             all_tags.extend(abstract_tags)
@@ -237,8 +247,8 @@ class GoogleResearch:
 
     def _get_next_page_url(self, page_number: int) -> str:
         url = f"{self.base_url}?page={page_number}"
-        if self.category:
-            url += f"&category={self.category}"
+        if self.categories:
+            url += ''.join(f"&category={cat}" for cat in self.categories)
         return url
 
     def __call__(self) -> Dict:
