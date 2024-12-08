@@ -1,3 +1,4 @@
+import codecs
 from ..retriever import Retriever
 from ..graph import Graph
 from typing import Dict, Tuple
@@ -13,7 +14,12 @@ class Pipeline:
         dictionary_path = pkg_resources.resource_filename(
             "symspellpy", "frequency_dictionary_en_500_000.txt"
         )
-        self.spell_checker.load_dictionary(dictionary_path, term_index=0, count_index=1)
+        with codecs.open(dictionary_path, 'r', encoding='cp437') as dictionary_file:
+            self.spell_checker._load_dictionary_stream(
+                dictionary_file,
+                term_index=0,
+                count_index=1
+            )
 
     def get_spelling_suggestion(self, text: str) -> Dict[str, str]:
         """Returns spelling suggestion and its confidence"""
