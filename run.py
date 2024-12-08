@@ -148,7 +148,7 @@ def initialize_knowledge_base():
     logger.info("Knowledge acquisition and processing complete")
     return True
 
-initialize_knowledge_base()
+#initialize_knowledge_base()
 
 app = FastAPI(
     description="Personal Knowledge Graph Search Engine",
@@ -216,6 +216,14 @@ knowledge = Knowledge()
 async def get_status():
     """Check if the backend is ready."""
     return {"status": "ready" if knowledge.is_ready else "loading"}
+
+@app.get("/spelling/{q}")
+def get_spelling_suggestion(q: str):
+    """Get spelling suggestion for a query."""
+    if not knowledge.is_ready:
+        return {"error": "System is still initializing"}
+    
+    return knowledge.pipeline.get_spelling_suggestion(q)
 
 @app.get("/search/{sort}/{tags}/{k_tags}/{q}")
 def search(k_tags: int, tags: str, sort: bool, q: str):

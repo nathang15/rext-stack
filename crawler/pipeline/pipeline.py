@@ -1,8 +1,8 @@
 from ..retriever import Retriever
 from ..graph import Graph
-from typing import Tuple
+from typing import Dict, Tuple
 import pkg_resources
-from symspellpy import SymSpell
+from symspellpy import SymSpell, Verbosity
 
 class Pipeline:
     def __init__(self, documents, triples, excluded_tags=None, max_edit_distance=2):
@@ -15,23 +15,54 @@ class Pipeline:
         )
         self.spell_checker.load_dictionary(dictionary_path, term_index=0, count_index=1)
 
-    def correct_spelling(self, text: str) -> Tuple[str, bool]:
+    def get_spelling_suggestion(self, text: str) -> Dict[str, str]:
+        """Returns spelling suggestion and its confidence"""
         suggestions = self.spell_checker.lookup_compound(
-            text, max_edit_distance=2, transfer_casing=True
+            text, 
+            max_edit_distance=2,
+            transfer_casing=True,
+            ignore_non_words=True
         )
-        if suggestions:
-            corrected = suggestions[0].term
-            was_corrected = corrected != text
-            return corrected, was_corrected
-        return text, False
-
-    def search(self, q: str, tags: bool = False, top_k: int = 100, apply_spelling: bool = True):
-        if apply_spelling:
-            corrected_q, was_corrected = self.correct_spelling(q)
-            if was_corrected:
-                print(f"Spell-corrected query: '{q}' -> '{corrected_q}'")
-            q = corrected_q
+        
+        if not suggestions:
+            words = text.split()
+            corrected_words = []
             
+            for word in words:
+                word_suggestions = self.spell_checker.lookup(
+                    word,
+                    Verbosity.ALL,
+                    max_edit_distance=2,
+                    transfer_casing=True,
+                    include_unknown=True
+                )
+                
+                if word_suggestions:
+                    best_suggestion = word_suggestions[0]
+                    if best_suggestion.distance <= 1:
+                        corrected_words.append(best_suggestion.term)
+                    else:
+                        corrected_words.append(word)
+                else:
+                    corrected_words.append(word)
+            
+            corrected_text = " ".join(corrected_words)
+            
+            if corrected_text != text:
+                return {
+                    "suggestion": corrected_text,
+                    "confidence": "high" if all(w in word_suggestions and w.distance <= 1 for w in words) else "medium"
+                }
+            
+        elif suggestions[0].term != text:
+            return {
+                "suggestion": suggestions[0].term,
+                "confidence": "high" if suggestions[0].distance <= 1 else "medium"
+            }
+            
+        return {"suggestion": None, "confidence": None}
+
+    def search(self, q: str, tags: bool = False, top_k: int = 100):
         if tags:
             return self.retriever.documents_tags(q, top_k)
         return self.retriever.documents(q, top_k)
@@ -43,14 +74,7 @@ class Pipeline:
         k_yens: int = 3,
         k_walk: int = 3,
         top_k: int = 10,
-        apply_spelling: bool = False
     ):
-        if apply_spelling:
-            corrected_q, was_corrected = self.correct_spelling(q)
-            if was_corrected:
-                print(f"Spell-corrected query: '{q}' -> '{corrected_q}'")
-            q = corrected_q
-
         documents = self.retriever.documents(q, top_k)
         retrieved_tags = [tag for tag in self.retriever.tags(q) if tag not in self.excluded_tags]
 
@@ -76,8 +100,6 @@ class Pipeline:
                             "tail": tag2
                         })
 
-
-        
         nodes, links = self.graph(
             tags=top_tags,
             retrieved_tags=retrieved_tags,
@@ -86,12 +108,11 @@ class Pipeline:
         )
         return documents, nodes, links
 
-    def plot(self, q: str, k_tags: int = 20, k_yens: int = 3, k_walk: int = 3, apply_spelling: bool = True):
+    def plot(self, q: str, k_tags: int = 20, k_yens: int = 3, k_walk: int = 3):
         _, nodes, links = self(
             q=q, 
             k_tags=k_tags, 
             k_yens=k_yens, 
-            k_walk=k_walk, 
-            apply_spelling=apply_spelling
+            k_walk=k_walk
         )
         return nodes, links

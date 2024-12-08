@@ -197,14 +197,16 @@ const Search = () => {
   const [query, setQuery] = useState('');
   const [inputValue, setInputValue] = useState('');
   const [node, setNode] = useState(null);
-  const [k, setK] = useState(40);
+  const k = 40;
   const [documents, setDocuments] = useState([]);
   const [graphData, setGraphData] = useState({ nodes: [], links: [] });
   const [hoveredNode, setHoveredNode] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [spellingSuggestion, setSpellingSuggestion] = useState(null);
   const itemsPerPage = 20;
   const documentsRef = useRef(null);
+  const spellCheckTimeoutRef = useRef(null);
 
   // URL parameter handling
   useEffect(() => {
@@ -224,6 +226,31 @@ const Search = () => {
         handleSearch(urlQuery + " " + urlNode, k);
       }
     }
+  }, []);
+
+  const checkSpelling = useCallback((text) => {
+    if (!text.trim()) {
+      setSpellingSuggestion(null);
+      return;
+    }
+    if (spellCheckTimeoutRef.current) {
+      clearTimeout(spellCheckTimeoutRef.current);
+    }
+    spellCheckTimeoutRef.current = setTimeout(() => {
+      fetch(`http://localhost:5000/spelling/${encodeURIComponent(text)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.suggestion && data.suggestion !== text) {
+            setSpellingSuggestion(data.suggestion);
+          } else {
+            setSpellingSuggestion(null);
+          }
+        })
+        .catch(error => {
+          console.error('Spelling check error:', error);
+          setSpellingSuggestion(null);
+        });
+    }, 500);
   }, []);
 
   const processGraphData = useCallback((data) => {
@@ -310,17 +337,28 @@ const Search = () => {
   }, [processGraphData]);
 
   const handleInputChange = (event) => {
-    setInputValue(event.target.value.toLowerCase());
+    const newValue = event.target.value.toLowerCase();
+    setInputValue(newValue);
+    checkSpelling(newValue);
   };
 
-  const executeSearch = useCallback(() => {
-    if (!inputValue.trim()) return;
+  const handleSuggestionClick = () => {
+    if (spellingSuggestion) {
+      setInputValue(spellingSuggestion);
+      setSpellingSuggestion(null);
+      executeSearch(spellingSuggestion);
+    }
+  };
+
+  const executeSearch = useCallback((searchText = inputValue) => {
+    if (!searchText.trim()) return;
     
-    setQuery(inputValue);
+    setQuery(searchText);
     setNode(null);
     setCurrentPage(1);
-    window.history.pushState({}, null, `?query=${encodeURIComponent(inputValue)}`);
-    handlePlot(inputValue, k);
+    setSpellingSuggestion(null);
+    window.history.pushState({}, null, `?query=${encodeURIComponent(searchText)}`);
+    handlePlot(searchText, k);
   }, [inputValue, k, handlePlot]);
 
   const handleKeyPress = (event) => {
@@ -365,14 +403,24 @@ const Search = () => {
   return (
     <div className="search-container">
       <div className="search-wrapper">
-        <input
-          id="search"
-          type="text"
-          value={inputValue}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyPress}
-          autoFocus
-        />
+        <div className="search-input-container">
+            <input
+              id="search"
+              type="text"
+              value={inputValue}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyPress}
+              autoFocus
+            />
+            {spellingSuggestion && (
+              <div className="spelling-suggestion">
+                Did you mean:{' '}
+                <button onClick={handleSuggestionClick} className="suggestion-button">
+                  {spellingSuggestion}
+                </button>
+              </div>
+            )}
+          </div>
          <button 
           className="search-button"
           onClick={executeSearch}
