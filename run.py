@@ -172,9 +172,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class Knowledge:
-    """This class is a wrapper around the pipeline."""
-
+class PipelineWrapper:
     def __init__(self) -> None:
         self.pipeline = None
         self.is_ready = False
@@ -210,29 +208,29 @@ class Knowledge:
         )
         return {"nodes": nodes, "links": links}
 
-knowledge = Knowledge()
+pw = PipelineWrapper()
 
 @app.get("/status")
 async def get_status():
     """Check if the backend is ready."""
-    return {"status": "ready" if knowledge.is_ready else "loading"}
+    return {"status": "ready" if pw.is_ready else "loading"}
 
 @app.get("/spelling/{q}")
 def get_spelling_suggestion(q: str):
     """Get spelling suggestion for a query."""
-    if not knowledge.is_ready:
+    if not pw.is_ready:
         return {"error": "System is still initializing"}
     
-    return knowledge.pipeline.get_spelling_suggestion(q)
+    return pw.pipeline.get_spelling_suggestion(q)
 
 @app.get("/search/{sort}/{tags}/{k_tags}/{q}")
 def search(k_tags: int, tags: str, sort: bool, q: str):
     """Search for documents."""
-    if not knowledge.is_ready:
+    if not pw.is_ready:
         return {"error": "System is still initializing"}
     
     tags = tags != "null"
-    documents = knowledge.search(q=q, tags=tags)
+    documents = pw.search(q=q, tags=tags)
     if bool(sort):
         documents = [
             document
@@ -249,12 +247,12 @@ def search(k_tags: int, tags: str, sort: bool, q: str):
 @app.get("/plot/{k_tags}/{q}", response_class=ORJSONResponse)
 def plot(k_tags: int, q: str):
     """Plot tags."""
-    if not knowledge.is_ready:
+    if not pw.is_ready:
         return {"error": "System is still initializing"}
     
-    return knowledge.plot(q=q, k_tags=k_tags)
+    return pw.plot(q=q, k_tags=k_tags)
 
 @app.on_event("startup")
 def start():
     """Initialize the pipeline."""
-    return knowledge.start()
+    return pw.start()

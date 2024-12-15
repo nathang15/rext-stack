@@ -351,8 +351,8 @@ const Search = () => {
   };
 
   const executeSearch = useCallback((searchText = inputValue) => {
-    if (!searchText.trim()) return;
-    
+    const searchValue = String(searchText ?? inputValue ?? '');
+    if (!searchValue.trim()) return;
     setQuery(searchText);
     setNode(null);
     setCurrentPage(1);
